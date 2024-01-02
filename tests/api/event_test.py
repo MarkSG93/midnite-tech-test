@@ -39,3 +39,13 @@ def test_event_accepts_valid_event_types(input: str):
         "type": input
     })
     assert response.status_code == 200
+
+def test_responds_with_payload_with_user_id():
+    response = app.test_client().post("/event", json={
+        "type": "deposit",
+        "amount": "42.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json['user_id'] == 1
