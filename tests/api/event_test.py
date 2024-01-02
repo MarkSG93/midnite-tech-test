@@ -1,12 +1,17 @@
 from flask import Flask, request, abort, jsonify
+import datetime
 import pytest
 
 database = {}
-def get_database(database={1: { "actions": [] }}):
-    return database
+def get_database():
+    return {1: { "actions": [] }}
+
+def get_now():
+    return datetime.datetime.now()
 
 app = Flask(__name__)
 app.get_database = get_database
+app.get_now = get_now
 
 # Code: 1100 : A withdraw amount over 100
 # Code: 30 : 3 consecutive withdraws
@@ -147,6 +152,34 @@ def get_database_with_multiple_actions():
     }
 def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_with_multiple_actions):
     app.get_database = get_database_with_multiple_actions
+    response = app.test_client().post("/event", json={
+        "type": "deposit",
+        "amount": "3000.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert response.status_code == 200
+    assert json["alert"] == True
+    assert json["alert_codes"] == [300]
+    assert json["user_id"] == 1
+
+@pytest.fixture
+def get_database_with_accumulative_deposits():
+    yield lambda: {
+        1: { 
+            "actions": ["depsoit", "deposit", "deposit"], 
+            "amounts": [100, 50, 50], 
+            "timestamps": ["1999-01-02T21:40:11+00:00", "2024-01-02T19:59:30+00:00", "2024-01-02T19:59:45:11+00:00"]
+        }
+    }
+@pytest.fixture
+def get_fake_now():
+    return "2024-01-02T20:00:00+00:00"
+
+def test_responds_with_alert_for_accumulative_deposits_over_threshold(get_database_with_accumulative_deposits, get_fake_now):
+    app.get_database = get_database_with_accumulative_deposits
+    app.get_now = get_fake_now
     response = app.test_client().post("/event", json={
         "type": "deposit",
         "amount": "3000.00",
