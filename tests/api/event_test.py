@@ -120,3 +120,22 @@ def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
     assert json["alert"] == True
     assert json["alert_codes"] == [1100, 30]
     assert json["user_id"] == 1
+
+@pytest.fixture
+def get_database_with_multiple_actions():
+    yield lambda: {
+        1: { "actions": ["withdraw", "deposit", "withdraw", "deposit"]}
+    }
+def test_responds_with_alert_for_consecutive_deposits(get_database_with_multiple_actions):
+    app.get_database = get_database_with_multiple_actions
+    response = app.test_client().post("/event", json={
+        "type": "deposit",
+        "amount": "999.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert response.status_code == 200
+    assert json["alert"] == True
+    assert json["alert_codes"] == [300]
+    assert json["user_id"] == 1
