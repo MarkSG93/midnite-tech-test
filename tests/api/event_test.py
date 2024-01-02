@@ -15,3 +15,9 @@ def test_event_accepts_payload():
         "t": 10
     })
     assert response.status_code == 200
+
+def test_event_rejects_invalid_types():
+    response = app.test_client().post("/event", data={
+        "type": "not-valid",
+    })
+    assert response.status_code == 400
