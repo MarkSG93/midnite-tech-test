@@ -8,7 +8,7 @@ def event():
     content = request.get_json()
     event_type = content["type"]
     if event_type != 'deposit' and event_type != 'withdraw':
-        return abort(400, "Only deposit or withdraw are supported event types")
+        return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
     return ""
 
 def test_event_accepts_payload():
