@@ -1,10 +1,13 @@
 from flask import Flask, request, abort, jsonify
 import pytest
 
+database = {}
+def get_database(database={}):
+    return database
+
 app = Flask(__name__)
-database = {
-    1: { "actions": ["widthdraw", "withdraw"]}
-}
+app.get_database = get_database
+
 # Code: 1100 : A withdraw amount over 100
 # Code: 30 : 3 consecutive withdraws
 # Code: 300 : 3 consecutive increasing deposits (ignoring withdraws)
@@ -14,25 +17,24 @@ def event():
     content = request.get_json()
     event_type = content["type"]
     user_id = content["user_id"]
+    alert_codes = []
+    db = app.get_database()
     if event_type != 'deposit' and event_type != 'withdraw':
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
 
-    if user_id not in database:
-        database[user_id] = { "actions": [event_type] }
     if event_type == "withdraw" and float(content["amount"]) > 100:
-        return jsonify(user_id=user_id, alert_codes=[1100], alert=True)
+        alert_codes.append(1100)
+        # return jsonify(user_id=user_id, alert_codes=[1100], alert=True)
     
-    if event_type == "withdraw":
-        user_actions = database[user_id]["actions"]
+    if event_type == "withdraw" and user_id in db:
+        user_actions = db[user_id]["actions"]
         if len(user_actions) >= 2:
-            return jsonify(user_id=user_id, alert_codes=[30], alert=True)
+            alert_codes.append(30)
+
+    if len(alert_codes) > 0:
+        return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
 
     return jsonify(user_id=user_id, alert_codes=[], alert=False)
-
-def seed_database():
-    database = {
-        1: { "actions": ["withdraw", "withdraw"] }
-    }
 
 @pytest.mark.parametrize("input", [
     ("not-valid"),
@@ -88,6 +90,9 @@ def test_responds_with_alert_code_for_withdrawal(input):
     assert json["user_id"] == 1
 
 def test_responds_with_alert_code_for_consecutive_withdrawals():
+    app.get_database = lambda: {
+        1: { "actions": ["withdraw", "withdraw"]}
+    }
     response = app.test_client().post("/event", json={
         "type": "withdraw",
         "amount": "99.00",
@@ -101,6 +106,9 @@ def test_responds_with_alert_code_for_consecutive_withdrawals():
 
 
 def test_responds_with_multiple_alert_codes():
+    app.database = lambda: {
+        1: { "actions": ["withdraw", "withdraw"]}
+    }
     response = app.test_client().post("/event", json={
         "type": "withdraw",
         "amount": "101.00",
@@ -108,6 +116,7 @@ def test_responds_with_multiple_alert_codes():
         "t": 10
     })
     json = response.get_json()
+    assert response.status_code == 200
     assert json["alert"] == True
-    assert [30, 1110] in json["alert_codes"]
+    assert json["alert_codes"] == [1100, 30]
     assert json["user_id"] == 1
