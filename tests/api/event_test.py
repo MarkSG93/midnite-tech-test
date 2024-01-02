@@ -45,8 +45,9 @@ def event():
                 continue
             total_deposits += 1
             previous_deposit_amount = deposit_amount
-        if total_deposits >= 2:
-            alert_codes.append(300)
+            if total_deposits >= 2:
+                alert_codes.append(300)
+                break
 
     if len(alert_codes) > 0:
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
