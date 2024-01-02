@@ -51,3 +51,15 @@ def test_responds_with_payload_with_user_id():
     })
     json = response.get_json()
     assert json['user_id'] == 1
+
+def test_responds_with_no_alert():
+    response = app.test_client().post("/event", json={
+        "type": "deposit",
+        "amount": "42.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json['user_id'] == 1
+    assert json['alert_codes'] == []
+    assert json['alert'] == False
