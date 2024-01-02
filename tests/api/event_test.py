@@ -1,5 +1,5 @@
 from flask import Flask, request, abort, jsonify
-import datetime
+from datetime import datetime
 import pytest
 
 database = {}
@@ -7,7 +7,7 @@ def get_database():
     return {1: { "actions": [] }}
 
 def get_now():
-    return datetime.datetime.now()
+    return datetime.now()
 
 app = Flask(__name__)
 app.get_database = get_database
@@ -53,6 +53,19 @@ def event():
             if total_deposits >= 2:
                 alert_codes.append(300)
                 break
+        
+        if "timestamps" in db[user_id]:
+            deposits_within_30_seconds = 0
+            for i, action in enumerate(reversed(user_actions)):
+                if action != "deposit":
+                    continue
+                previous_action_time = datetime.fromisoformat(db[user_id]["timestamps"][i])
+                now = app.get_now()
+                if (now - previous_action_time).total_seconds() <= 30:
+                    deposits_within_30_seconds += 1
+                if deposits_within_30_seconds >= 2:
+                    alert_codes.append(123)
+                    break
 
     if len(alert_codes) > 0:
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
@@ -168,14 +181,14 @@ def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_wi
 def get_database_with_accumulative_deposits():
     yield lambda: {
         1: { 
-            "actions": ["depsoit", "deposit", "deposit"], 
+            "actions": ["deposit", "deposit", "deposit"], 
             "amounts": [100, 50, 50], 
-            "timestamps": ["1999-01-02T21:40:11+00:00", "2024-01-02T19:59:30+00:00", "2024-01-02T19:59:45:11+00:00"]
+            "timestamps": ["1999-01-02T21:40:11+00:00", "2024-01-02T19:59:30+00:00", "2024-01-02T19:59:45+00:00"]
         }
     }
 @pytest.fixture
 def get_fake_now():
-    return "2024-01-02T20:00:00+00:00"
+    yield lambda: datetime.fromisoformat("2024-01-02T20:00:00+00:00")
 
 def test_responds_with_alert_for_accumulative_deposits_over_threshold(get_database_with_accumulative_deposits, get_fake_now):
     app.get_database = get_database_with_accumulative_deposits
@@ -189,5 +202,5 @@ def test_responds_with_alert_for_accumulative_deposits_over_threshold(get_databa
     json = response.get_json()
     assert response.status_code == 200
     assert json["alert"] == True
-    assert json["alert_codes"] == [300]
+    assert json["alert_codes"] == [123]
     assert json["user_id"] == 1
