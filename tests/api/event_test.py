@@ -2,7 +2,10 @@ from flask import Flask, request, abort, jsonify
 import pytest
 
 app = Flask(__name__)
-
+# Code: 1100 : A withdraw amount over 100
+# Code: 30 : 3 consecutive withdraws
+# Code: 300 : 3 consecutive increasing deposits (ignoring withdraws)
+# Code: 123 : Accumulative deposit amount over a window of 30 seconds is over 200
 @app.route("/event", methods=["POST"])
 def event():
     content = request.get_json()
@@ -53,3 +56,15 @@ def test_responds_with_no_alert():
     assert json['user_id'] == 1
     assert json['alert_codes'] == []
     assert json['alert'] == False
+
+def test_responds_with_alert_code_for_withdrawal():
+    response = app.test_client().post("/event", json={
+        "type": "deposit",
+        "amount": "100.01",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json["alert"] == True
+    assert json["alert_codes"] == [1100]
+    assert json["user_id"] == 1
