@@ -28,7 +28,7 @@ def event():
     if event_type != 'deposit' and event_type != 'withdraw':
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
 
-    if event_type == "withdraw" and float(content["amount"]) > 100:
+    if event_type == "withdraw" and amount > 100 * 100:
         alert_codes.append(1100)
     
     if event_type == "withdraw":
@@ -56,14 +56,18 @@ def event():
         
         if "timestamps" in db[user_id]:
             deposits_within_30_seconds = 0
+            deposit_amount_within_last_30_seconds = amount
             for i, action in enumerate(reversed(user_actions)):
                 if action != "deposit":
                     continue
                 previous_action_time = datetime.fromisoformat(db[user_id]["timestamps"][i])
-                now = app.get_now()
+                payload_seconds = content["t"]
+                now = app.get_now().replace(second=int(payload_seconds))
+                
                 if (now - previous_action_time).total_seconds() <= 30:
                     deposits_within_30_seconds += 1
-                if deposits_within_30_seconds >= 2:
+                    deposit_amount_within_last_30_seconds += db[user_id]["amounts"][i]
+                if deposit_amount_within_last_30_seconds > 200 * 100:
                     alert_codes.append(123)
                     break
 
@@ -182,7 +186,7 @@ def get_database_with_accumulative_deposits():
     yield lambda: {
         1: { 
             "actions": ["deposit", "deposit", "deposit"], 
-            "amounts": [100, 50, 50], 
+            "amounts": [1000, 10000, 7500], 
             "timestamps": ["1999-01-02T21:40:11+00:00", "2024-01-02T19:59:30+00:00", "2024-01-02T19:59:45+00:00"]
         }
     }
@@ -195,12 +199,27 @@ def test_responds_with_alert_for_accumulative_deposits_over_threshold(get_databa
     app.get_now = get_fake_now
     response = app.test_client().post("/event", json={
         "type": "deposit",
-        "amount": "3000.00",
+        "amount": "50.00",
         "user_id": 1,
-        "t": 10
+        "t": 0
     })
     json = response.get_json()
     assert response.status_code == 200
     assert json["alert"] == True
     assert json["alert_codes"] == [123]
+    assert json["user_id"] == 1
+
+def test_responds_with_no_alert_for_accumulative_deposits(get_database_with_accumulative_deposits, get_fake_now):
+    app.get_database = get_database_with_accumulative_deposits
+    app.get_now = get_fake_now
+    response = app.test_client().post("/event", json={
+        "type": "deposit",
+        "amount": "10.00",
+        "user_id": 1,
+        "t": 25
+    })
+    json = response.get_json()
+    assert response.status_code == 200
+    assert json["alert"] == False
+    assert json["alert_codes"] == []
     assert json["user_id"] == 1
