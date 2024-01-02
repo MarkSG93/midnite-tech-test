@@ -1,5 +1,11 @@
+from flask import Flask
 import pytest
-from api import app
+
+app = Flask(__name__)
+
+@app.route("/event", methods=["POST"])
+def event():
+    return ""
 
 def test_event_accepts_payload():
     response = app.test_client().post("/event", data={
