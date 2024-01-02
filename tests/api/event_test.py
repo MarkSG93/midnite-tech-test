@@ -1,4 +1,4 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, jsonify
 import pytest
 
 app = Flask(__name__)
@@ -9,6 +9,8 @@ def event():
     event_type = content["type"]
     if event_type != 'deposit' and event_type != 'withdraw':
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
+    if "user_id" in content:
+        return jsonify(user_id=content["user_id"])
     return ""
 
 def test_event_accepts_payload():
