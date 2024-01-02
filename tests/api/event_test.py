@@ -3,9 +3,7 @@ import pytest
 
 app = Flask(__name__)
 database = {
-    "1": {
-        "actions": []
-    }
+    1: { "actions": ["widthdraw", "withdraw"]}
 }
 # Code: 1100 : A withdraw amount over 100
 # Code: 30 : 3 consecutive withdraws
@@ -25,11 +23,16 @@ def event():
         return jsonify(user_id=user_id, alert_codes=[1100], alert=True)
     
     if event_type == "withdraw":
-        if len(database[content["user_id"]]["actions"]) >= 2:
+        user_actions = database[user_id]["actions"]
+        if len(user_actions) >= 2:
             return jsonify(user_id=user_id, alert_codes=[30], alert=True)
 
     return jsonify(user_id=user_id, alert_codes=[], alert=False)
 
+def seed_database():
+    database = {
+        1: { "actions": ["withdraw", "withdraw"] }
+    }
 
 @pytest.mark.parametrize("input", [
     ("not-valid"),
@@ -85,9 +88,6 @@ def test_responds_with_alert_code_for_withdrawal(input):
     assert json["user_id"] == 1
 
 def test_responds_with_alert_code_for_consecutive_withdrawals():
-    database[1] = {
-        "actions": ["withdraw", "withdraw"]
-    }
     response = app.test_client().post("/event", json={
         "type": "withdraw",
         "amount": "99.00",
@@ -97,4 +97,16 @@ def test_responds_with_alert_code_for_consecutive_withdrawals():
     json = response.get_json()
     assert json["alert"] == True
     assert json["alert_codes"] == [30]
+    assert json["user_id"] == 1
+
+def test_responds_with_multiple_alert_codes():
+    response = app.test_client().post("/event", json={
+        "type": "withdraw",
+        "amount": "101.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json["alert"] == True
+    assert json["alert_codes"] == [30, 1100]
     assert json["user_id"] == 1
