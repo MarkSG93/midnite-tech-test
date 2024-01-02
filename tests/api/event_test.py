@@ -13,6 +13,8 @@ def event():
     if event_type != 'deposit' and event_type != 'withdraw':
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
     if "user_id" in content:
+        if float(content["amount"]) > 100:
+            return jsonify(user_id=content["user_id"], alert_codes=[1100], alert=True)
         return jsonify(user_id=content["user_id"], alert_codes=[], alert=False)
     return ""
 
