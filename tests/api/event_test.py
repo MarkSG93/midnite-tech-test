@@ -75,3 +75,15 @@ def test_responds_with_alert_code_for_withdrawal(input):
     assert json["alert"] == True
     assert json["alert_codes"] == [1100]
     assert json["user_id"] == 1
+
+def test_responds_with_alert_code_for_consecutive_withdrawals():
+    response = app.test_client().post("/event", json={
+        "type": "withdraw",
+        "amount": input,
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json["alert"] == True
+    assert json["alert_codes"] == [30]
+    assert json["user_id"] == 1
