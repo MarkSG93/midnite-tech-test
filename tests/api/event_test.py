@@ -17,6 +17,7 @@ def event():
     content = request.get_json()
     event_type = content["type"]
     user_id = content["user_id"]
+    amount = int(float(content["amount"]) * 100)
     alert_codes = []
     db = app.get_database()
     if event_type != 'deposit' and event_type != 'withdraw':
@@ -34,10 +35,12 @@ def event():
         user_actions = db[user_id]["actions"]
         total_deposits = 0
         previous_deposit_amount = 0
-        for i, action in enumerate(user_actions):
+        for i, action in enumerate(reversed(user_actions)):
             if action != "deposit":
                 continue
             deposit_amount = db[user_id]["amounts"][i]
+            if amount < deposit_amount:
+                break
             if deposit_amount < previous_deposit_amount:
                 continue
             total_deposits += 1
