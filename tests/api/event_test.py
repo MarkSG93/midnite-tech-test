@@ -29,6 +29,21 @@ def event():
         user_actions = db[user_id]["actions"]
         if len(user_actions) >= 2:
             alert_codes.append(30)
+        
+    if event_type == "deposit" and user_id in db:
+        user_actions = db[user_id]["actions"]
+        total_deposits = 0
+        previous_deposit_amount = 0
+        for i, action in enumerate(user_actions):
+            if action != "deposit":
+                continue
+            deposit_amount = db[user_id]["amounts"][i]
+            if deposit_amount < previous_deposit_amount:
+                continue
+            total_deposits += 1
+            previous_deposit_amount = deposit_amount
+        if total_deposits >= 2:
+            alert_codes.append(300)
 
     if len(alert_codes) > 0:
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
@@ -124,13 +139,13 @@ def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
 @pytest.fixture
 def get_database_with_multiple_actions():
     yield lambda: {
-        1: { "actions": ["withdraw", "deposit", "withdraw", "deposit"]}
+        1: { "actions": ["withdraw", "deposit", "withdraw", "deposit"], "amounts": [0, 1000, 0, 2000]}
     }
-def test_responds_with_alert_for_consecutive_deposits(get_database_with_multiple_actions):
+def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_with_multiple_actions):
     app.get_database = get_database_with_multiple_actions
     response = app.test_client().post("/event", json={
         "type": "deposit",
-        "amount": "999.00",
+        "amount": "3000.00",
         "user_id": 1,
         "t": 10
     })
