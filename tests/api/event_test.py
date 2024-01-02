@@ -2,7 +2,7 @@ from flask import Flask, request, abort, jsonify
 import pytest
 
 database = {}
-def get_database(database={}):
+def get_database(database={1: { "actions": [] }}):
     return database
 
 app = Flask(__name__)
@@ -26,12 +26,12 @@ def event():
     if event_type == "withdraw" and float(content["amount"]) > 100:
         alert_codes.append(1100)
     
-    if event_type == "withdraw" and user_id in db:
+    if event_type == "withdraw":
         user_actions = db[user_id]["actions"]
         if len(user_actions) >= 2:
             alert_codes.append(30)
         
-    if event_type == "deposit" and user_id in db:
+    if event_type == "deposit":
         user_actions = db[user_id]["actions"]
         total_deposits = 0
         previous_deposit_amount = 0
