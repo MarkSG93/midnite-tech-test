@@ -20,8 +20,22 @@ def test_event_accepts_payload():
     })
     assert response.status_code == 200
 
-def test_event_rejects_invalid_types():
+@pytest.mark.parametrize("input", [
+    ("not-valid"),
+    ("also-not-valid"),
+])
+def test_event_rejects_invalid_types(input: str):
     response = app.test_client().post("/event", json={
-        "type": "not-valid",
+        "type": input,
     })
     assert response.status_code == 400
+
+@pytest.mark.parametrize("input", [
+    ("deposit"),
+    ("withdraw")
+])
+def test_event_accepts_valid_event_types(input: str):
+    response = app.test_client().post("/event", json={
+        "type": input
+    })
+    assert response.status_code == 200
