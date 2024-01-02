@@ -24,7 +24,6 @@ def event():
 
     if event_type == "withdraw" and float(content["amount"]) > 100:
         alert_codes.append(1100)
-        # return jsonify(user_id=user_id, alert_codes=[1100], alert=True)
     
     if event_type == "withdraw" and user_id in db:
         user_actions = db[user_id]["actions"]
@@ -107,7 +106,6 @@ def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_
     assert json["alert"] == True
     assert json["alert_codes"] == [30]
     assert json["user_id"] == 1
-
 
 def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
     app.get_database = get_database_with_withdrawals
