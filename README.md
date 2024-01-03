@@ -39,6 +39,10 @@ This is a python 3 application so it must be run using python version 3
 
 `python app.py`  or `python3 app.py` depending on your machine setup.
 
+Make a request: 
+`curl -XPOST http://127.0.0.1:5000/event -H 'Content-Type: application/json' \
+-d '{"type": "deposit", "amount": "42.00", "user_id": 1, "t": 0}'`
+
 ## Run the tests
 
 `pytest` - pretty easy!
