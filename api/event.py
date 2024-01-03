@@ -48,7 +48,6 @@ def event():
 
     if event_type == EventType.WITHDRAW:
         user_actions = db[user_id]["actions"]
-        print(user_actions)
         if _should_raise_alert_for_withdraw_threshold(amount):
             alert_codes.append(AlertCode.WITHDRAW_OVER_THRESHOLD)
 
