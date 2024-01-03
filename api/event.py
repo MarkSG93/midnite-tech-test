@@ -62,13 +62,25 @@ def event():
             if _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
                 alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
 
+    _add_event_to_db(db, app.get_now, content)
+
     if len(alert_codes) > 0:
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
 
     return jsonify(user_id=user_id, alert_codes=[], alert=False)
 
+def _add_event_to_db(db, now, content):
+    user_id = content["user_id"]
+    if user_id in db and "actions" in db[user_id] and "event_type" in content:
+        db[user_id]["actions"].append(content["event_type"])
+
+    if "amounts" in db[user_id] and "amount" in content:
+        db[user_id]["amounts"].append(_str_to_cents(content["amount"]))
+    
+    if "timestamps" in db[user_id] and "t" in content:
+        db[user_id]["timestamps"].append(now().replace(second=int(content["t"])))
+
 def _should_raise_alert_for_increasing_deposits(db, user_id, new_amount) -> bool:
-    alert_codes = []
     user_actions = db[user_id]["actions"]
     total_deposits = 0
     previous_deposit_amount = 0
