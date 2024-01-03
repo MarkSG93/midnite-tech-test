@@ -1,4 +1,4 @@
-## Midnite Tech Test Readme
+# Midnite Tech Test Readme
 
 ## Description
 
@@ -27,11 +27,17 @@ If the event triggered any alerts, the payload you receive will include the asso
 
 The endpoint *only* accepts event types of either `deposit` or `withdrawal`.
 
+## Install dependencies
+
+It is recommended to create a `venv` before installing the dependencies. 
+
+To install dependencies run `pip install -r requirements.txt`
+
 ## Run the app
 
 This is a python 3 application so it must be run using python version 3
 
-`python [app.py](http://app.py)`  or `python3 app.py` depending on your machine setup.
+`python app.py`  or `python3 app.py` depending on your machine setup.
 
 ## Run the tests
 
