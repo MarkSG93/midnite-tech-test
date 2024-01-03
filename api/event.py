@@ -40,25 +40,23 @@ def event():
     amount = _str_to_cents(content["amount"])
     alert_codes = []
     db = app.get_database()
-
+    
     if event_type != EventType.DEPOSIT and event_type != EventType.WITHDRAW:
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
     
     _add_event_to_db(db, app.get_now, content)
-
     if event_type == EventType.WITHDRAW:
-        user_actions = db[user_id]["actions"]
         if _should_raise_alert_for_withdraw_threshold(amount):
             alert_codes.append(AlertCode.WITHDRAW_OVER_THRESHOLD)
 
-        if _should_raise_alert_for_consecutive_withdrawals(user_actions):
+        if _should_raise_alert_for_consecutive_withdrawals(db[user_id]["actions"]):
             alert_codes.append(AlertCode.CONSECUTIVE_WITHDRAWALS)
         
     if event_type == EventType.DEPOSIT:
         if _should_raise_alert_for_increasing_deposits(db, user_id, amount):
             alert_codes.append(AlertCode.CONSECUTIVE_INCREASING_DEPOSITS)
         
-        if "timestamps" in db[user_id] and _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
+        if _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
             alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
 
     if len(alert_codes) > 0:
@@ -68,13 +66,16 @@ def event():
 
 def _add_event_to_db(db, now, content):
     user_id = content["user_id"]
-    if user_id in db and "actions" in db[user_id] and "type" in content:
+    if user_id not in db:
+        db[user_id] = { "actions": [], "timestamps": [], "amounts": [] }
+
+    if "type" in content:
         db[user_id]["actions"].append(content["type"])
 
-    if "amounts" in db[user_id] and "amount" in content:
+    if "amount" in content:
         db[user_id]["amounts"].append(_str_to_cents(content["amount"]))
     
-    if "timestamps" in db[user_id] and "t" in content:
+    if "t" in content:
         timestamp = now().replace(second=int(content["t"]))
         db[user_id]["timestamps"].append(timestamp.isoformat())
 
@@ -106,7 +107,7 @@ def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, paylo
         if action != EventType.DEPOSIT:
             continue
         previous_action_time = datetime.fromisoformat(db[user_id]["timestamps"][i])
-        now = app.get_now().replace(second=int(payload_seconds))
+        now = app.get_now().replace(second=payload_seconds) # Who doesn't love dates
         
         if (now - previous_action_time).total_seconds() <= CONSECUTIVE_DEPOSIT_TIME_THRESHOLD:
             deposit_amount_within_time_period += db[user_id]["amounts"][i]
@@ -115,10 +116,10 @@ def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, paylo
     return False
 
 def _should_raise_alert_for_consecutive_withdrawals(user_actions) -> bool:
-    total_consecutive_withdrawals = 1
-    for i, action in enumerate(reversed(user_actions)):
+    total_consecutive_withdrawals = 0
+    for action in reversed(user_actions):
         if action != EventType.WITHDRAW:
-            break
+            return False
         total_consecutive_withdrawals += 1
         if total_consecutive_withdrawals > TOTAL_WITHDRAWALS_BEFORE_ALERT:
             return True

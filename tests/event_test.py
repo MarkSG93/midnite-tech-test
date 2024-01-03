@@ -3,6 +3,8 @@ import pytest
 
 from api.event import app, AlertCode
 
+GENERIC_DATE = "1999-01-01T00:00:00+00:00"
+
 @pytest.mark.parametrize("input", [
     ("not-valid"),
     ("also-not-valid"),
@@ -64,23 +66,6 @@ def test_responds_with_alert_code_for_withdrawal(input, get_empty_database):
     assert json["alert_codes"] == [AlertCode.WITHDRAW_OVER_THRESHOLD]
     assert json["user_id"] == 1
 
-@pytest.fixture
-def get_database_with_withdrawals():
-    yield lambda: {
-        1: { "actions": ["withdraw", "withdraw"]}
-    }
-def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_withdrawals):
-    app.get_database = get_database_with_withdrawals
-    response = app.test_client().post("/event", json={
-        "type": "withdraw",
-        "amount": "99.00",
-        "user_id": 1,
-        "t": 10
-    })
-    json = response.get_json()
-    assert json["alert"] == True
-    assert json["alert_codes"] == [AlertCode.CONSECUTIVE_WITHDRAWALS]
-    assert json["user_id"] == 1
 
 def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
     app.get_database = get_database_with_withdrawals
@@ -97,9 +82,31 @@ def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
     assert json["user_id"] == 1
 
 @pytest.fixture
+def get_database_with_withdrawals():
+    yield lambda: {
+        1: { "actions": ["withdraw", "withdraw"], "amounts": [0, 0], "timestamps": [GENERIC_DATE, GENERIC_DATE]}
+    }
+def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_withdrawals):
+    app.get_database = get_database_with_withdrawals
+    response = app.test_client().post("/event", json={
+        "type": "withdraw",
+        "amount": "99.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json["alert"] == True
+    assert json["alert_codes"] == [AlertCode.CONSECUTIVE_WITHDRAWALS]
+    assert json["user_id"] == 1
+
+@pytest.fixture
 def get_database_with_multiple_actions():
     yield lambda: {
-        1: { "actions": ["withdraw", "deposit", "withdraw", "deposit"], "amounts": [0, 1000, 0, 2000]}
+        1: { 
+            "actions": ["withdraw", "deposit", "withdraw"], 
+            "amounts": [0, 100, 0], 
+            "timestamps": ["2024-01-02T19:59:45+00:00", "2024-01-02T19:59:45+00:00", "2024-01-02T19:59:45+00:00"]
+        }
     }
 def test_responds_with_no_alert_when_withdrawals_are_spaced_out(get_database_with_multiple_actions):
     app.get_database = get_database_with_multiple_actions
@@ -110,15 +117,16 @@ def test_responds_with_no_alert_when_withdrawals_are_spaced_out(get_database_wit
         "t": 10
     })
     json = response.get_json()
-    assert json["alert"] == False
     assert json["alert_codes"] == []
+    assert json["alert"] == False
     assert json["user_id"] == 1
 
-def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_with_multiple_actions):
+def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_with_multiple_actions, get_fake_now):
     app.get_database = get_database_with_multiple_actions
+    app.get_now = get_fake_now
     response = app.test_client().post("/event", json={
         "type": "deposit",
-        "amount": "3000.00",
+        "amount": "110.00",
         "user_id": 1,
         "t": 10
     })
