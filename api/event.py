@@ -94,7 +94,6 @@ def _should_raise_alert_for_increasing_deposits(db, user_id, new_amount) -> bool
     return False
 
 def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, payload_seconds) -> bool:
-    deposits_within_time_period = 0
     deposit_amount_within_last_30_seconds = new_amount
     user_actions = db[user_id]["actions"]
     for i, action in enumerate(reversed(user_actions)):
@@ -104,7 +103,6 @@ def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, paylo
         now = app.get_now().replace(second=int(payload_seconds))
         
         if (now - previous_action_time).total_seconds() <= CONSECUTIVE_DEPOSIT_TIME_THRESHOLD:
-            deposits_within_time_period += 1
             deposit_amount_within_last_30_seconds += db[user_id]["amounts"][i]
         if deposit_amount_within_last_30_seconds > CONSECUTIVE_DEPOSIT_THRESHOLD:
             return True
