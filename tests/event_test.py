@@ -75,6 +75,19 @@ def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_
     assert json["alert_codes"] == [AlertCode.CONSECUTIVE_WITHDRAWALS]
     assert json["user_id"] == 1
 
+def test_responds_with_no_alert_when_withdrawals_are_spaced_out(get_database_with_multiple_actions):
+    app.get_database = get_database_with_multiple_actions
+    response = app.test_client().post("/event", json={
+        "type": "withdraw",
+        "amount": "99.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json["alert"] == False
+    assert json["alert_codes"] == []
+    assert json["user_id"] == 1
+
 def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
     app.get_database = get_database_with_withdrawals
     response = app.test_client().post("/event", json={
@@ -136,7 +149,7 @@ def test_responds_with_alert_for_accumulative_deposits_over_threshold(get_databa
     assert json["alert_codes"] == [AlertCode.ACCUMULATIVE_DEPOSITS]
     assert json["user_id"] == 1
 
-def test_responds_with_no_alert_for_accumulative_deposits(get_database_with_accumulative_deposits, get_fake_now):
+def test_responds_with_no_alert_for_accumulative_non_increasing_deposits(get_database_with_accumulative_deposits, get_fake_now):
     app.get_database = get_database_with_accumulative_deposits
     app.get_now = get_fake_now
     response = app.test_client().post("/event", json={

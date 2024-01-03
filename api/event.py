@@ -51,47 +51,61 @@ def event():
     
     if event_type == EventType.WITHDRAW:
         user_actions = db[user_id]["actions"]
-        if len(user_actions) >= TOTAL_WITHDRAWALS_BEFORE_ALERT:
-            alert_codes.append(AlertCode.CONSECUTIVE_WITHDRAWALS)
+        total_consecutive_withdrawals = 1
+        for i, action in enumerate(reversed(user_actions)):
+            if action != EventType.WITHDRAW:
+                break
+            total_consecutive_withdrawals += 1
+            if total_consecutive_withdrawals > TOTAL_WITHDRAWALS_BEFORE_ALERT:
+                alert_codes.append(AlertCode.CONSECUTIVE_WITHDRAWALS)
+                break
         
     if event_type == EventType.DEPOSIT:
         user_actions = db[user_id]["actions"]
-        total_deposits = 0
-        previous_deposit_amount = 0
-        for i, action in enumerate(reversed(user_actions)):
-            if action != EventType.DEPOSIT:
-                continue
-            deposit_amount = db[user_id]["amounts"][i]
-            if amount < deposit_amount:
-                break
-            if deposit_amount < previous_deposit_amount:
-                continue
-            total_deposits += 1
-            previous_deposit_amount = deposit_amount
-            if total_deposits >= TOTAL_DEPOSITS_BEFORE_ALERT:
-                alert_codes.append(AlertCode.CONSECUTIVE_INCREASING_DEPOSITS)
-                break
+        if _should_raise_alert_for_increasing_deposits(db, user_id, amount):
+            alert_codes.append(AlertCode.CONSECUTIVE_INCREASING_DEPOSITS)
         
         if "timestamps" in db[user_id]:
-            deposits_within_30_seconds = 0
-            deposit_amount_within_last_30_seconds = amount
-            for i, action in enumerate(reversed(user_actions)):
-                if action != EventType.DEPOSIT:
-                    continue
-                previous_action_time = datetime.fromisoformat(db[user_id]["timestamps"][i])
-                payload_seconds = content["t"]
-                now = app.get_now().replace(second=int(payload_seconds))
-                
-                if (now - previous_action_time).total_seconds() <= CONSECUTIVE_DEPOSIT_TIME_THRESHOLD:
-                    deposits_within_30_seconds += 1
-                    deposit_amount_within_last_30_seconds += db[user_id]["amounts"][i]
-                if deposit_amount_within_last_30_seconds > CONSECUTIVE_DEPOSIT_THRESHOLD:
-                    alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
-                    break
+            if _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
+                alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
 
     if len(alert_codes) > 0:
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
 
     return jsonify(user_id=user_id, alert_codes=[], alert=False)
 
+def _should_raise_alert_for_increasing_deposits(db, user_id, new_amount) -> bool:
+    alert_codes = []
+    user_actions = db[user_id]["actions"]
+    total_deposits = 0
+    previous_deposit_amount = 0
+    for i, action in enumerate(reversed(user_actions)):
+        if action != EventType.DEPOSIT:
+            continue
+        previous_deposit_amount = db[user_id]["amounts"][i]
+        if new_amount < previous_deposit_amount:
+            break
+        if previous_deposit_amount < previous_deposit_amount:
+            continue
+        total_deposits += 1
+        previous_deposit_amount = previous_deposit_amount
+        if total_deposits >= TOTAL_DEPOSITS_BEFORE_ALERT:
+            return True
+    return False
 
+def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, payload_seconds) -> bool:
+    deposits_within_time_period = 0
+    deposit_amount_within_last_30_seconds = new_amount
+    user_actions = db[user_id]["actions"]
+    for i, action in enumerate(reversed(user_actions)):
+        if action != EventType.DEPOSIT:
+            continue
+        previous_action_time = datetime.fromisoformat(db[user_id]["timestamps"][i])
+        now = app.get_now().replace(second=int(payload_seconds))
+        
+        if (now - previous_action_time).total_seconds() <= CONSECUTIVE_DEPOSIT_TIME_THRESHOLD:
+            deposits_within_time_period += 1
+            deposit_amount_within_last_30_seconds += db[user_id]["amounts"][i]
+        if deposit_amount_within_last_30_seconds > CONSECUTIVE_DEPOSIT_THRESHOLD:
+            return True
+    return False
