@@ -58,9 +58,8 @@ def event():
         if _should_raise_alert_for_increasing_deposits(db, user_id, amount):
             alert_codes.append(AlertCode.CONSECUTIVE_INCREASING_DEPOSITS)
         
-        if "timestamps" in db[user_id]:
-            if _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
-                alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
+        if "timestamps" in db[user_id] and _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
+            alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
 
     _add_event_to_db(db, app.get_now, content)
 
