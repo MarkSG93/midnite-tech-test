@@ -1,7 +1,7 @@
 from datetime import datetime
 import pytest
 
-from api.event import app
+from api.event import app, AlertCode
 
 @pytest.mark.parametrize("input", [
     ("not-valid"),
@@ -53,7 +53,7 @@ def test_responds_with_alert_code_for_withdrawal(input):
     })
     json = response.get_json()
     assert json["alert"] == True
-    assert json["alert_codes"] == [1100]
+    assert json["alert_codes"] == [AlertCode.WITHDRAW_OVER_THRESHOLD]
     assert json["user_id"] == 1
 
 @pytest.fixture
@@ -72,7 +72,7 @@ def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_
     })
     json = response.get_json()
     assert json["alert"] == True
-    assert json["alert_codes"] == [30]
+    assert json["alert_codes"] == [AlertCode.CONSECUTIVE_WITHDRAWALS]
     assert json["user_id"] == 1
 
 def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
@@ -86,7 +86,7 @@ def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
     json = response.get_json()
     assert response.status_code == 200
     assert json["alert"] == True
-    assert json["alert_codes"] == [1100, 30]
+    assert json["alert_codes"] == [AlertCode.WITHDRAW_OVER_THRESHOLD, AlertCode.CONSECUTIVE_WITHDRAWALS]
     assert json["user_id"] == 1
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_wi
     json = response.get_json()
     assert response.status_code == 200
     assert json["alert"] == True
-    assert json["alert_codes"] == [300]
+    assert json["alert_codes"] == [AlertCode.CONSECUTIVE_INCREASING_DEPOSITS]
     assert json["user_id"] == 1
 
 @pytest.fixture
@@ -133,7 +133,7 @@ def test_responds_with_alert_for_accumulative_deposits_over_threshold(get_databa
     json = response.get_json()
     assert response.status_code == 200
     assert json["alert"] == True
-    assert json["alert_codes"] == [123]
+    assert json["alert_codes"] == [AlertCode.ACCUMULATIVE_DEPOSITS]
     assert json["user_id"] == 1
 
 def test_responds_with_no_alert_for_accumulative_deposits(get_database_with_accumulative_deposits, get_fake_now):

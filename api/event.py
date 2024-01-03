@@ -1,7 +1,18 @@
+import enum
 from flask import Flask, request, abort, jsonify
 from datetime import datetime
 
 from util.money import _float_to_cents, _str_to_cents
+
+class EventType(str, enum.Enum):
+    DEPOSIT = "deposit"
+    WITHDRAW = "withdraw"
+
+class AlertCode(int, enum.Enum):
+    WITHDRAW_OVER_THRESHOLD = 1100
+    CONSECUTIVE_WITHDRAWALS = 30
+    CONSECUTIVE_INCREASING_DEPOSITS = 300
+    ACCUMULATIVE_DEPOSITS = 123
 
 database = {}
 def get_database():
@@ -31,23 +42,24 @@ def event():
     amount = _str_to_cents(content["amount"])
     alert_codes = []
     db = app.get_database()
-    if event_type != 'deposit' and event_type != 'withdraw':
-        return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
 
-    if event_type == "withdraw" and amount > WITHDRAW_THRESHOLD:
-        alert_codes.append(1100)
+    if event_type != EventType.DEPOSIT and event_type != EventType.WITHDRAW:
+        return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
     
-    if event_type == "withdraw":
+    if event_type == EventType.WITHDRAW and amount > WITHDRAW_THRESHOLD:
+        alert_codes.append(AlertCode.WITHDRAW_OVER_THRESHOLD)
+    
+    if event_type == EventType.WITHDRAW:
         user_actions = db[user_id]["actions"]
         if len(user_actions) >= TOTAL_WITHDRAWALS_BEFORE_ALERT:
-            alert_codes.append(30)
+            alert_codes.append(AlertCode.CONSECUTIVE_WITHDRAWALS)
         
-    if event_type == "deposit":
+    if event_type == EventType.DEPOSIT:
         user_actions = db[user_id]["actions"]
         total_deposits = 0
         previous_deposit_amount = 0
         for i, action in enumerate(reversed(user_actions)):
-            if action != "deposit":
+            if action != EventType.DEPOSIT:
                 continue
             deposit_amount = db[user_id]["amounts"][i]
             if amount < deposit_amount:
@@ -57,14 +69,14 @@ def event():
             total_deposits += 1
             previous_deposit_amount = deposit_amount
             if total_deposits >= TOTAL_DEPOSITS_BEFORE_ALERT:
-                alert_codes.append(300)
+                alert_codes.append(AlertCode.CONSECUTIVE_INCREASING_DEPOSITS)
                 break
         
         if "timestamps" in db[user_id]:
             deposits_within_30_seconds = 0
             deposit_amount_within_last_30_seconds = amount
             for i, action in enumerate(reversed(user_actions)):
-                if action != "deposit":
+                if action != EventType.DEPOSIT:
                     continue
                 previous_action_time = datetime.fromisoformat(db[user_id]["timestamps"][i])
                 payload_seconds = content["t"]
@@ -74,7 +86,7 @@ def event():
                     deposits_within_30_seconds += 1
                     deposit_amount_within_last_30_seconds += db[user_id]["amounts"][i]
                 if deposit_amount_within_last_30_seconds > CONSECUTIVE_DEPOSIT_THRESHOLD:
-                    alert_codes.append(123)
+                    alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
                     break
 
     if len(alert_codes) > 0:
