@@ -84,12 +84,13 @@ def _should_raise_alert_for_increasing_deposits(db, user_id, new_amount) -> bool
     amounts = db[user_id]["amounts"][::-1]
     total_deposits = 0
     current_amount = -1
-    print(user_actions, amounts)
     for i, action in enumerate(user_actions):
         if action != EventType.DEPOSIT:
             continue
         current_amount = amounts[i]
         if i + 1 < len(amounts) and current_amount > amounts[i+1]:
+            total_deposits += 1
+        if i + 1 == len(amounts) and current_amount < amounts[i-1]:
             total_deposits += 1
         if total_deposits > TOTAL_INCREASING_DEPOSITS_BEFORE_ALERT:
             return True
