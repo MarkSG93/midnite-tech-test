@@ -46,22 +46,15 @@ def event():
     if event_type != EventType.DEPOSIT and event_type != EventType.WITHDRAW:
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
     
-    if event_type == EventType.WITHDRAW and amount > WITHDRAW_THRESHOLD:
-        alert_codes.append(AlertCode.WITHDRAW_OVER_THRESHOLD)
-    
     if event_type == EventType.WITHDRAW:
         user_actions = db[user_id]["actions"]
-        total_consecutive_withdrawals = 1
-        for i, action in enumerate(reversed(user_actions)):
-            if action != EventType.WITHDRAW:
-                break
-            total_consecutive_withdrawals += 1
-            if total_consecutive_withdrawals > TOTAL_WITHDRAWALS_BEFORE_ALERT:
-                alert_codes.append(AlertCode.CONSECUTIVE_WITHDRAWALS)
-                break
+        if _should_raise_alert_for_withdraw_threshold(amount):
+            alert_codes.append(AlertCode.WITHDRAW_OVER_THRESHOLD)
+
+        if _should_raise_alert_for_consecutive_withdrawals(user_actions):
+            alert_codes.append(AlertCode.CONSECUTIVE_WITHDRAWALS)
         
     if event_type == EventType.DEPOSIT:
-        user_actions = db[user_id]["actions"]
         if _should_raise_alert_for_increasing_deposits(db, user_id, amount):
             alert_codes.append(AlertCode.CONSECUTIVE_INCREASING_DEPOSITS)
         
@@ -107,3 +100,16 @@ def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, paylo
         if deposit_amount_within_last_30_seconds > CONSECUTIVE_DEPOSIT_THRESHOLD:
             return True
     return False
+
+def _should_raise_alert_for_consecutive_withdrawals(user_actions) -> bool:
+    total_consecutive_withdrawals = 1
+    for i, action in enumerate(reversed(user_actions)):
+        if action != EventType.WITHDRAW:
+            break
+        total_consecutive_withdrawals += 1
+        if total_consecutive_withdrawals > TOTAL_WITHDRAWALS_BEFORE_ALERT:
+            return True
+    return False
+
+def _should_raise_alert_for_withdraw_threshold(amount: int) -> bool:
+    return amount > WITHDRAW_THRESHOLD
