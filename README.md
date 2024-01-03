@@ -64,3 +64,7 @@ The database is hardly a well thought out and structured data structure (or even
 ### Dodgy Dependency Injection
 
 Usually I use factories to create objects as it allows me to inject dependencies into it during tests and deployment. However, this was my first time using Flask at all and Python in a few years so instead I opted for functions I can fake on the Flask `app` object. These two being to fake the database and also to provide a fake clock.
+
+### Deployability
+
+Because it's run via a python command, the application is not production ready. Usually I'd deploy APIs to Lambda and API Gateway but that was far too extreme for the exercise. I could have also created a dockerfile to build an image to run the application but it would effectively be the same as running `python app.py` on your own machine as I have assumed you already have Python installed.
