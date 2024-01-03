@@ -11,7 +11,8 @@ def test_event_rejects_invalid_types(input: str):
     response = app.test_client().post("/event", json={
         "type": input,
         "user_id": 1,
-        "amount": "100.00"
+        "amount": "100.00",
+        "t": 0
     })
     assert response.status_code == 400
 
@@ -23,7 +24,8 @@ def test_event_accepts_valid_event_types(input: str):
     response = app.test_client().post("/event", json={
         "type": input,
         "user_id": 1,
-        "amount": "100.00"
+        "amount": "100.00",
+        "t": 0
     })
     assert response.status_code == 200
 
@@ -39,12 +41,18 @@ def test_responds_with_no_alert():
     assert json['alert_codes'] == []
     assert json['alert'] == False
 
+@pytest.fixture
+def get_empty_database():
+    yield lambda: {
+        1: { "actions": [], "amounts": [], "timestamps": [] }
+    }
 @pytest.mark.parametrize("input", [
     ("100.01"),
     ("10123.51"),
     ("2348.7234")
 ])
-def test_responds_with_alert_code_for_withdrawal(input):
+def test_responds_with_alert_code_for_withdrawal(input, get_empty_database):
+    app.get_database = get_empty_database
     response = app.test_client().post("/event", json={
         "type": "withdraw",
         "amount": input,
@@ -61,7 +69,6 @@ def get_database_with_withdrawals():
     yield lambda: {
         1: { "actions": ["withdraw", "withdraw"]}
     }
-
 def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_withdrawals):
     app.get_database = get_database_with_withdrawals
     response = app.test_client().post("/event", json={
@@ -73,19 +80,6 @@ def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_
     json = response.get_json()
     assert json["alert"] == True
     assert json["alert_codes"] == [AlertCode.CONSECUTIVE_WITHDRAWALS]
-    assert json["user_id"] == 1
-
-def test_responds_with_no_alert_when_withdrawals_are_spaced_out(get_database_with_multiple_actions):
-    app.get_database = get_database_with_multiple_actions
-    response = app.test_client().post("/event", json={
-        "type": "withdraw",
-        "amount": "99.00",
-        "user_id": 1,
-        "t": 10
-    })
-    json = response.get_json()
-    assert json["alert"] == False
-    assert json["alert_codes"] == []
     assert json["user_id"] == 1
 
 def test_responds_with_multiple_alert_codes(get_database_with_withdrawals):
@@ -107,6 +101,19 @@ def get_database_with_multiple_actions():
     yield lambda: {
         1: { "actions": ["withdraw", "deposit", "withdraw", "deposit"], "amounts": [0, 1000, 0, 2000]}
     }
+def test_responds_with_no_alert_when_withdrawals_are_spaced_out(get_database_with_multiple_actions):
+    app.get_database = get_database_with_multiple_actions
+    response = app.test_client().post("/event", json={
+        "type": "withdraw",
+        "amount": "99.00",
+        "user_id": 1,
+        "t": 10
+    })
+    json = response.get_json()
+    assert json["alert"] == False
+    assert json["alert_codes"] == []
+    assert json["user_id"] == 1
+
 def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_with_multiple_actions):
     app.get_database = get_database_with_multiple_actions
     response = app.test_client().post("/event", json={

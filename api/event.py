@@ -44,6 +44,8 @@ def event():
     if event_type != EventType.DEPOSIT and event_type != EventType.WITHDRAW:
         return abort(400, "Only 'deposit' or 'withdraw' are supported event types")
     
+    _add_event_to_db(db, app.get_now, content)
+
     if event_type == EventType.WITHDRAW:
         user_actions = db[user_id]["actions"]
         print(user_actions)
@@ -60,8 +62,6 @@ def event():
         if "timestamps" in db[user_id] and _should_raise_alert_for_accumulative_deposits(db, user_id, amount, content["t"]):
             alert_codes.append(AlertCode.ACCUMULATIVE_DEPOSITS)
 
-    _add_event_to_db(db, app.get_now, content)
-
     if len(alert_codes) > 0:
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
 
@@ -76,7 +76,8 @@ def _add_event_to_db(db, now, content):
         db[user_id]["amounts"].append(_str_to_cents(content["amount"]))
     
     if "timestamps" in db[user_id] and "t" in content:
-        db[user_id]["timestamps"].append(now().replace(second=int(content["t"])))
+        timestamp = now().replace(second=int(content["t"]))
+        db[user_id]["timestamps"].append(timestamp.isoformat())
 
 def _should_raise_alert_for_increasing_deposits(db, user_id, new_amount) -> bool:
     user_actions = db[user_id]["actions"]
@@ -97,8 +98,11 @@ def _should_raise_alert_for_increasing_deposits(db, user_id, new_amount) -> bool
     return False
 
 def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, payload_seconds) -> bool:
-    deposit_amount_within_last_30_seconds = new_amount
+    deposit_amount_within_time_period = new_amount
     user_actions = db[user_id]["actions"]
+    if len(user_actions) < 2:
+        return False
+
     for i, action in enumerate(reversed(user_actions)):
         if action != EventType.DEPOSIT:
             continue
@@ -106,8 +110,8 @@ def _should_raise_alert_for_accumulative_deposits(db, user_id, new_amount, paylo
         now = app.get_now().replace(second=int(payload_seconds))
         
         if (now - previous_action_time).total_seconds() <= CONSECUTIVE_DEPOSIT_TIME_THRESHOLD:
-            deposit_amount_within_last_30_seconds += db[user_id]["amounts"][i]
-        if deposit_amount_within_last_30_seconds > CONSECUTIVE_DEPOSIT_THRESHOLD:
+            deposit_amount_within_time_period += db[user_id]["amounts"][i]
+        if deposit_amount_within_time_period > CONSECUTIVE_DEPOSIT_THRESHOLD:
             return True
     return False
 
