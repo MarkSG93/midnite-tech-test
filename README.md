@@ -1,6 +1,4 @@
-# Midnite Tech Test Readme
-
-## Description
+# Description
 
 Repository for my Midnite Technical Test submission. The application was TDD’d and is written in Python3.x. The application consists of a single endpoint; `/event`. This endpoint accepts a JSON payload that should be structured in the following format: 
 
