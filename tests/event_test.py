@@ -103,8 +103,8 @@ def test_responds_with_alert_code_for_consecutive_withdrawals(get_database_with_
 def get_database_with_multiple_actions():
     yield lambda: {
         1: { 
-            "actions": ["withdraw", "deposit", "withdraw"], 
-            "amounts": [0, 100, 0], 
+            "actions": ["withdraw", "deposit", "deposit", "withdraw"], 
+            "amounts": [0, 100, 1000, 0], 
             "timestamps": ["2024-01-02T19:59:45+00:00", "2024-01-02T19:59:45+00:00", "2024-01-02T19:59:45+00:00"]
         }
     }
@@ -126,7 +126,7 @@ def test_responds_with_alert_for_consecutive_increasing_deposits(get_database_wi
     app.get_now = get_fake_now
     response = app.test_client().post("/event", json={
         "type": "deposit",
-        "amount": "110.00",
+        "amount": "100.00",
         "user_id": 1,
         "t": 10
     })
