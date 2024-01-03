@@ -21,9 +21,9 @@ TOTAL_DEPOSITS_BEFORE_ALERT = 2
 TOTAL_WITHDRAWALS_BEFORE_ALERT = 2
 
 # very basic database
-database = {}
+default_database = {1: { "actions": [], "amounts": [], "timestamps": [] }}
 def get_database():
-    return {1: { "actions": [] }}
+    return default_database
 
 def get_now():
     return datetime.now()
@@ -31,7 +31,6 @@ def get_now():
 app = Flask(__name__)
 app.get_database = get_database
 app.get_now = get_now
-
 
 @app.route("/event", methods=["POST"])
 def event():
@@ -47,6 +46,7 @@ def event():
     
     if event_type == EventType.WITHDRAW:
         user_actions = db[user_id]["actions"]
+        print(user_actions)
         if _should_raise_alert_for_withdraw_threshold(amount):
             alert_codes.append(AlertCode.WITHDRAW_OVER_THRESHOLD)
 
@@ -69,8 +69,8 @@ def event():
 
 def _add_event_to_db(db, now, content):
     user_id = content["user_id"]
-    if user_id in db and "actions" in db[user_id] and "event_type" in content:
-        db[user_id]["actions"].append(content["event_type"])
+    if user_id in db and "actions" in db[user_id] and "type" in content:
+        db[user_id]["actions"].append(content["type"])
 
     if "amounts" in db[user_id] and "amount" in content:
         db[user_id]["amounts"].append(_str_to_cents(content["amount"]))
