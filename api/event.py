@@ -21,7 +21,7 @@ def event():
     content = request.get_json()
     event_type = content["type"]
     user_id = content["user_id"]
-    amount = int(float(content["amount"]) * 100)
+    amount = _convert_to_cents(content["amount"])
     alert_codes = []
     db = app.get_database()
     if event_type != 'deposit' and event_type != 'withdraw':
@@ -74,3 +74,6 @@ def event():
         return jsonify(user_id=user_id, alert_codes=alert_codes, alert=True)
 
     return jsonify(user_id=user_id, alert_codes=[], alert=False)
+
+def _convert_to_cents(amount: str) -> int:
+    return int(float(amount) * 100)
