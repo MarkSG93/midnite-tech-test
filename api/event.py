@@ -14,6 +14,13 @@ class AlertCode(int, enum.Enum):
     CONSECUTIVE_INCREASING_DEPOSITS = 300
     ACCUMULATIVE_DEPOSITS = 123
 
+WITHDRAW_THRESHOLD = _float_to_cents(100)
+CONSECUTIVE_DEPOSIT_THRESHOLD = _float_to_cents(200)
+CONSECUTIVE_DEPOSIT_TIME_THRESHOLD = 30
+TOTAL_DEPOSITS_BEFORE_ALERT = 2
+TOTAL_WITHDRAWALS_BEFORE_ALERT = 2
+
+# very basic database
 database = {}
 def get_database():
     return {1: { "actions": [] }}
@@ -25,15 +32,7 @@ app = Flask(__name__)
 app.get_database = get_database
 app.get_now = get_now
 
-WITHDRAW_THRESHOLD = _float_to_cents(100)
-CONSECUTIVE_DEPOSIT_THRESHOLD = _float_to_cents(200)
-CONSECUTIVE_DEPOSIT_TIME_THRESHOLD = 30
-TOTAL_DEPOSITS_BEFORE_ALERT = 2
-TOTAL_WITHDRAWALS_BEFORE_ALERT = 2
-# Code: 1100 : A withdraw amount over 100
-# Code: 30 : 3 consecutive withdraws
-# Code: 300 : 3 consecutive increasing deposits (ignoring withdraws)
-# Code: 123 : Accumulative deposit amount over a window of 30 seconds is over 200
+
 @app.route("/event", methods=["POST"])
 def event():
     content = request.get_json()
